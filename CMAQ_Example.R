@@ -1,29 +1,53 @@
 rm (list=ls())
+
 # Without fixed effect
-path <- ("C:/Users/Jeffrey/OneDrive - University of Oklahoma/Research/")
+path <- ("C:/Users/Jeffrey/Research/")
 
-setwd(paste0(path,"/CMAQ/"))
+setwd(paste0(path,"/SmokeTransport/"))
 
-Mon_loc   <- read.csv("LCC_6370997.csv",header=TRUE)
-
-
-PM25_Y13  <- read.csv("CMAQ_OBS_WestUS_Daily_2013.csv",header=TRUE)
-PM25_Y14  <- read.csv("CMAQ_OBS_WestUS_Daily_2014.csv",header=TRUE)
-NAM_Y13   <- read.csv("NAM_2013.csv",header=TRUE)
-NAM_Y14   <- read.csv("NAM_2014.csv",header=TRUE)
+dataFormat <- 1 # 0 for CMAG/NAM, 1 for Marcela
 
 
+if(dataFormat == 0) {
+  Mon_loc   <- read.csv("data/LCC_6370997.csv",header=TRUE)
+  
+  
+  PM25_Y13  <- read.csv("data/CMAQ_OBS_WestUS_Daily_2013.csv",header=TRUE)
+  PM25_Y14  <- read.csv("data/CMAQ_OBS_WestUS_Daily_2014.csv",header=TRUE)
+  NAM_Y13   <- read.csv("data/NAM_2013.csv",header=TRUE)
+  NAM_Y14   <- read.csv("data/NAM_2014.csv",header=TRUE)
+  
+  
+  
+  PM25      <- rbind(PM25_Y13,PM25_Y14)
+  NAMO      <- rbind(NAM_Y13,NAM_Y14)
+  
+  
+  strDates  <- paste0(PM25$SMM,"/",PM25$SDD,"/",PM25$SYYYY)
+  PM25$date <- as.Date(strDates, "%m/%d/%Y")
+  strDates  <- paste0(NAMO$MM,"/",NAMO$DD,"/",NAMO$YYYY)
+  NAMO$date <- as.Date(strDates, "%m/%d/%Y")
+  
+  head(PM25$date)
+  head(NAMO$date)
+} else if(dataFormat == 1) {
+  Mon_loc   <- read.csv("data/mon_loc_unique_col61_all_11_20_2019.csv")
+  load("data/data_Grid_fixed_Nov_21_2019.RData")
+  PM25      <- read.csv("data/pm25_unique_col61_all_11_20_2019.csv")
+  NAMO      <- read.csv("data/LUR.csv")
+  
+  datesplit   <- strsplit(as.character(PM25$date), "[- ]")
+  dates       <- paste0(sapply(datesplit, "[[", 2),"/",sapply(datesplit, "[[", 3),"/",sapply(datesplit, "[[", 1))
+  PM25$date   <- as.Date(dates, "%m/%d/%Y")
+  NAMO$date   <- as.Date(NAMO$date, "%m/%d/%Y")
+  
+  colnames(PM25)[colnames(PM25) == "gridID"] <- "SiteID"
+  colnames(Mon_loc)[colnames(Mon_loc) == "Grid_Cell"] <- "SiteID"
+}
 
-PM25      <- rbind(PM25_Y13,PM25_Y14)
-NAMO      <- rbind(NAM_Y13,NAM_Y14)
 
-strDates  <- paste0(PM25$SMM,"/",PM25$SDD,"/",PM25$SYYYY)
-PM25$date <- as.Date(strDates, "%m/%d/%Y")
-strDates  <- paste0(NAMO$MM,"/",NAMO$DD,"/",NAMO$YYYY)
-NAMO$date <- as.Date(strDates, "%m/%d/%Y")
 
-head(PM25$date)
-head(NAMO$date)
+
 
 PM25$mergeID <- paste0(PM25$date,"-",PM25$SiteID)
 NAMO$mergeID <- paste0(NAMO$date,"-",NAMO$SiteID)
