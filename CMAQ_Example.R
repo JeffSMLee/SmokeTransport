@@ -5,7 +5,7 @@ path <- ("C:/Users/Jeffrey/Research/")
 
 setwd(paste0(path,"/SmokeTransport/"))
 
-dataFormat <- 1 # 0 for CMAG/NAM, 1 for Marcela
+dataFormat <- 0 # 0 for CMAG/NAM, 1 for Marcela
 
 
 if(dataFormat == 0) {
@@ -41,8 +41,23 @@ if(dataFormat == 0) {
   PM25$date   <- as.Date(dates, "%m/%d/%Y")
   NAMO$date   <- as.Date(NAMO$date, "%m/%d/%Y")
   
-  colnames(PM25)[colnames(PM25) == "gridID"] <- "SiteID"
-  colnames(Mon_loc)[colnames(Mon_loc) == "Grid_Cell"] <- "SiteID"
+  colnames(PM25)[colnames(PM25) == "monID"] <- "SiteID"
+  colnames(PM25)[colnames(PM25) == "pm25"] <- "PM_FRM_ob"
+  
+  
+  Mon_loc     <- merge(Mon_loc, grid.loc_Fixed, by="Grid_Cell")
+  colnames(Mon_loc)[colnames(Mon_loc) == "ID"] <- "SiteID"
+  colnames(Mon_loc)[colnames(Mon_loc) == "pm_x"]      <- "SiteX"
+  colnames(Mon_loc)[colnames(Mon_loc) == "pm_y"]      <- "SiteY"
+  colnames(Mon_loc)[colnames(Mon_loc) == "X"]         <- "GridRow"
+  Mon_loc$GridRow                                     <- 1
+  Mon_loc$GridCol                                     <- Mon_loc$SiteID
+  colnames(Mon_loc)[colnames(Mon_loc) == "pm_lon"]    <- "SiteLon"
+  colnames(Mon_loc)[colnames(Mon_loc) == "pm_lat"]    <- "SiteLat"
+  colnames(Mon_loc)[colnames(Mon_loc) == "AOD_lon"]   <- "GridLon"
+  colnames(Mon_loc)[colnames(Mon_loc) == "AOD_lat"]   <- "GridLat"
+  colnames(Mon_loc)[colnames(Mon_loc) == "AOD_x"]     <- "Grid_Centroid_X"
+  colnames(Mon_loc)[colnames(Mon_loc) == "AOD_y"]     <- "Grid_Centroid_Y"
 }
 
 
