@@ -5,7 +5,7 @@ path <- ("C:/Users/Jeffrey/Research/")
 
 setwd(paste0(path,"/SmokeTransport/"))
 
-dataFormat <- 0 # 0 for CMAG/NAM, 1 for Marcela
+dataFormat <- 1 # 0 for CMAG/NAM, 1 for Marcela
 
 
 if(dataFormat == 0) {
@@ -36,17 +36,20 @@ if(dataFormat == 0) {
   PM25      <- read.csv("data/pm25_unique_col61_all_11_20_2019.csv")
   NAMO      <- read.csv("data/LUR.csv")
   
+  
+  
+  
   datesplit   <- strsplit(as.character(PM25$date), "[- ]")
   dates       <- paste0(sapply(datesplit, "[[", 2),"/",sapply(datesplit, "[[", 3),"/",sapply(datesplit, "[[", 1))
   PM25$date   <- as.Date(dates, "%m/%d/%Y")
   NAMO$date   <- as.Date(NAMO$date, "%m/%d/%Y")
   
   colnames(PM25)[colnames(PM25) == "monID"] <- "SiteID"
-  colnames(PM25)[colnames(PM25) == "pm25"] <- "PM_FRM_ob"
+  colnames(PM25)[colnames(PM25) == "pm25"]  <- "PM_FRM_ob"
   
   
   Mon_loc     <- merge(Mon_loc, grid.loc_Fixed, by="Grid_Cell")
-  colnames(Mon_loc)[colnames(Mon_loc) == "ID"] <- "SiteID"
+  colnames(Mon_loc)[colnames(Mon_loc) == "ID"]        <- "SiteID"
   colnames(Mon_loc)[colnames(Mon_loc) == "pm_x"]      <- "SiteX"
   colnames(Mon_loc)[colnames(Mon_loc) == "pm_y"]      <- "SiteY"
   colnames(Mon_loc)[colnames(Mon_loc) == "X"]         <- "GridRow"
@@ -58,6 +61,9 @@ if(dataFormat == 0) {
   colnames(Mon_loc)[colnames(Mon_loc) == "AOD_lat"]   <- "GridLat"
   colnames(Mon_loc)[colnames(Mon_loc) == "AOD_x"]     <- "Grid_Centroid_X"
   colnames(Mon_loc)[colnames(Mon_loc) == "AOD_y"]     <- "Grid_Centroid_Y"
+  
+  
+  NAMO <- merge(NAMO, Mon_loc[,c("Grid_Cell", "SiteID")], by.x="Grid_Cell", by.y="Grid_Cell")
 }
 
 
@@ -175,6 +181,7 @@ X = dat_f$PM_FRM_mod
 Y = dat_f$PM_FRM_ob
 Z = as.matrix (dat_f[, name_cov])
 
+
 # there is no Met predictors
 #Z = as.matrix (dat[, c("elevation", "forestcover", "lim.hwy.length", "point.emi.any", "tmp", "wind")])
 
@@ -182,7 +189,11 @@ Z = as.matrix (dat_f[, name_cov])
 #Time ID = consecutive days with label 1, 2, ...
 Space.ID = dat_f$MonID # 192
 
-dat_f$timeorder = as.numeric(as.Date(dat_f$date) - as.Date ("2013-01-01"))+1
+if(dataFormat == 0) {
+  dat_f$timeorder = as.numeric(as.Date(dat_f$date) - as.Date ("2013-01-01"))+1
+} else if(dataFormat == 1){
+  dat_f$timeorder = as.numeric(as.Date(dat_f$date) - as.Date ("2013-07-01"))+1
+}
 Time.ID = dat_f$timeorder
 
 
@@ -208,7 +219,7 @@ Mon.coord = mon_sit[c("SiteX", "SiteY")]/1000
 source ("Downscaler_Final.R")
 
 
-n.iter = 30000
+n.iter = 1000#30000
 burn = 5000
 thin = 5
 fit = DownScaler (Y, X, Z, Dist.mat, Space.ID, Time.ID, Mon.coord, n.iter = n.iter, burn = burn, thin = thin,taper=TRUE, save.beta = TRUE)
@@ -379,7 +390,8 @@ Z.pred <- as.matrix (dat_pred[, name_cov])
 #Space ID = monitor ID 1, 2, ...
 #Time ID = consecutive days with label 1, 2, ...
 Space.ID.pred <- dat_pred$GridID
-Time.ID.pred  <- as.numeric(as.Date(dat_pred$date) - as.Date ("2013-01-01"))+1
+
+Time.ID.pred  <- as.numeric(as.Date(dat_pred$date) - as.Date ("2013-07-01"))+1
 
 
 

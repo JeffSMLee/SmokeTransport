@@ -172,9 +172,9 @@ DownScaler = function(Y, X, Z, Dist.mat, Space.ID, Day.ID, Mon.coord,
 
 	print ("Preparing for MCMC")
 	# 
-	if(FALSE){
+	if(TRUE){
 		Day.ID = Time.ID;taper=TRUE;range1 = 100;range2 = 250
-		n.iter = 50000; burn = 10; thin = 10000
+		n.iter = 500; burn = 10; thin = 10000
 		A.sd = 1000; A21.tune = 0.4; rho1.tune=0.4; rho2.tune = 0.3
 		range1 = 100; range2 = 250
 		rho1.a = 5; rho1.b = 0.05;rho2.a = 5; rho2.b = 0.05
@@ -262,9 +262,12 @@ DownScaler = function(Y, X, Z, Dist.mat, Space.ID, Day.ID, Mon.coord,
 	#gamma = matrix(fit@fixef, ncol = 1)
 	gamma = matrix (fixef(fit), ncol=1)	
 	sigma.prec = 1/mean (resid(fit)^2)
-	alpha = as.matrix(ranef (fit)[[2]])
-	beta = matrix(NA, ncol=2, nrow = N.day); beta[Day.obs,]= as.matrix(ranef (fit)[[1]])
-
+	#alpha = as.matrix(ranef (fit)[[2]])
+	#beta = matrix(NA, ncol=2, nrow = N.day); beta[Day.obs,]= as.matrix(ranef (fit)[[1]])
+	alpha = as.matrix(ranef (fit)$Space.ID)
+	beta = matrix(NA, ncol=2, nrow = N.day); beta[Day.obs,]= as.matrix(ranef (fit)$Day.ID)
+	
+	
 	tau = 1/apply (beta, 2, var, na.rm = T)
 	if ( is.na(beta[1,1]) ){ beta[,1]= 0}
 	for (i in 2:nrow(beta)){
@@ -312,7 +315,10 @@ DownScaler = function(Y, X, Z, Dist.mat, Space.ID, Day.ID, Mon.coord,
 	
 	while (i <= n.iter){
 
-		if ( (i %% 250) == 0  ){ print (paste("Iteration", i, "of", n.iter)) }
+		if (TRUE){ #(i %% 250) == 0  ){ 
+		  print (paste("Iteration", i, "of", n.iter)) 
+		}
+	  
 
 		#Update fixed effects "gamma"
 		MMM = MMM - Z%*%gamma
