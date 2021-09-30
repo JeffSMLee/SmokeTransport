@@ -62,8 +62,14 @@ if(dataFormat == 0) {
   colnames(Mon_loc)[colnames(Mon_loc) == "AOD_x"]     <- "Grid_Centroid_X"
   colnames(Mon_loc)[colnames(Mon_loc) == "AOD_y"]     <- "Grid_Centroid_Y"
   
+  # monitors 9 and 10 occupy the same grid; remove site 10
+  Mon_loc <- subset(Mon_loc, Mon_loc$SiteID != 10)
+  PM25    <- subset(PM25, PM25$SiteID != 10)
   
   NAMO <- merge(NAMO, Mon_loc[,c("Grid_Cell", "SiteID")], by.x="Grid_Cell", by.y="Grid_Cell")
+  save(PM25, file="pm25.RData")
+  save(Mon_loc, file="monloc.RData")
+  save(NAMO, file="namo.RData")
 }
 
 
@@ -192,7 +198,7 @@ Space.ID = dat_f$MonID # 192
 if(dataFormat == 0) {
   dat_f$timeorder = as.numeric(as.Date(dat_f$date) - as.Date ("2013-01-01"))+1
 } else if(dataFormat == 1){
-  dat_f$timeorder = as.numeric(as.Date(dat_f$date) - as.Date ("2013-07-01"))+1
+  dat_f$timeorder = as.numeric(as.Date(dat_f$date) - as.Date ("2013-01-01"))+1
 }
 Time.ID = dat_f$timeorder
 
@@ -219,7 +225,7 @@ Mon.coord = mon_sit[c("SiteX", "SiteY")]/1000
 source ("Downscaler_Final.R")
 
 
-n.iter = 1000#30000
+n.iter = 30000
 burn = 5000
 thin = 5
 fit = DownScaler (Y, X, Z, Dist.mat, Space.ID, Time.ID, Mon.coord, n.iter = n.iter, burn = burn, thin = thin,taper=TRUE, save.beta = TRUE)
@@ -248,32 +254,84 @@ apply (junk, 2, sd, na.rm = T) ## Standard deviation
 
 rm (list=ls())
 
-path <- ("C:/Users/Jeffrey/OneDrive/")
-#path <- ("C:/OneDriveUNR/OneDrive - University of Nevada, Reno/A_UNR/Research/")
-setwd(paste0(path,"/CMAQ/"))
+path <- ("C:/Users/Jeffrey/Research/")
+
+setwd(paste0(path,"/SmokeTransport/"))
 
 #load ("data.RData")
 load ("DSrun.RData")
 
-Mon_loc   <- read.csv("LCC_6370997.csv",header=TRUE)
-PM25_Y13  <- read.csv("CMAQ_OBS_WestUS_Daily_2013.csv",header=TRUE)
-PM25_Y14  <- read.csv("CMAQ_OBS_WestUS_Daily_2014.csv",header=TRUE)
-NAM_Y13   <- read.csv("NAM_2013.csv",header=TRUE)
-NAM_Y14   <- read.csv("NAM_2014.csv",header=TRUE)
+dataFormat <- 1 # 0 for CMAG/NAM, 1 for Marcela
 
-PM25      <- rbind(PM25_Y13,PM25_Y14)
-NAMO      <- rbind(NAM_Y13,NAM_Y14)
 
-strDates  <- paste0(PM25$SMM,"/",PM25$SDD,"/",PM25$SYYYY)
-PM25$date <- as.Date(strDates, "%m/%d/%Y")
-strDates  <- paste0(NAMO$MM,"/",NAMO$DD,"/",NAMO$YYYY)
-NAMO$date <- as.Date(strDates, "%m/%d/%Y")
+if(dataFormat == 0) {
+  Mon_loc   <- read.csv("data/LCC_6370997.csv",header=TRUE)
+  
+  
+  PM25_Y13  <- read.csv("data/CMAQ_OBS_WestUS_Daily_2013.csv",header=TRUE)
+  PM25_Y14  <- read.csv("data/CMAQ_OBS_WestUS_Daily_2014.csv",header=TRUE)
+  NAM_Y13   <- read.csv("data/NAM_2013.csv",header=TRUE)
+  NAM_Y14   <- read.csv("data/NAM_2014.csv",header=TRUE)
+  
+  
+  
+  PM25      <- rbind(PM25_Y13,PM25_Y14)
+  NAMO      <- rbind(NAM_Y13,NAM_Y14)
+  
+  
+  strDates  <- paste0(PM25$SMM,"/",PM25$SDD,"/",PM25$SYYYY)
+  PM25$date <- as.Date(strDates, "%m/%d/%Y")
+  strDates  <- paste0(NAMO$MM,"/",NAMO$DD,"/",NAMO$YYYY)
+  NAMO$date <- as.Date(strDates, "%m/%d/%Y")
+  
+  head(PM25$date)
+  head(NAMO$date)
+} else if(dataFormat == 1) {
+  Mon_loc   <- read.csv("data/mon_loc_unique_col61_all_11_20_2019.csv")
+  load("data/data_Grid_fixed_Nov_21_2019.RData")
+  PM25      <- read.csv("data/pm25_unique_col61_all_11_20_2019.csv")
+  NAMO      <- read.csv("data/LUR.csv")
+  
+  
+  
+  
+  datesplit   <- strsplit(as.character(PM25$date), "[- ]")
+  dates       <- paste0(sapply(datesplit, "[[", 2),"/",sapply(datesplit, "[[", 3),"/",sapply(datesplit, "[[", 1))
+  PM25$date   <- as.Date(dates, "%m/%d/%Y")
+  NAMO$date   <- as.Date(NAMO$date, "%m/%d/%Y")
+  
+  colnames(PM25)[colnames(PM25) == "monID"] <- "SiteID"
+  colnames(PM25)[colnames(PM25) == "pm25"]  <- "PM_FRM_ob"
+  
+  
+  Mon_loc     <- merge(Mon_loc, grid.loc_Fixed, by="Grid_Cell")
+  colnames(Mon_loc)[colnames(Mon_loc) == "ID"]        <- "SiteID"
+  colnames(Mon_loc)[colnames(Mon_loc) == "pm_x"]      <- "SiteX"
+  colnames(Mon_loc)[colnames(Mon_loc) == "pm_y"]      <- "SiteY"
+  colnames(Mon_loc)[colnames(Mon_loc) == "X"]         <- "GridRow"
+  Mon_loc$GridRow                                     <- 1
+  Mon_loc$GridCol                                     <- Mon_loc$SiteID
+  colnames(Mon_loc)[colnames(Mon_loc) == "pm_lon"]    <- "SiteLon"
+  colnames(Mon_loc)[colnames(Mon_loc) == "pm_lat"]    <- "SiteLat"
+  colnames(Mon_loc)[colnames(Mon_loc) == "AOD_lon"]   <- "GridLon"
+  colnames(Mon_loc)[colnames(Mon_loc) == "AOD_lat"]   <- "GridLat"
+  colnames(Mon_loc)[colnames(Mon_loc) == "AOD_x"]     <- "Grid_Centroid_X"
+  colnames(Mon_loc)[colnames(Mon_loc) == "AOD_y"]     <- "Grid_Centroid_Y"
+  
+  # monitors 9 and 10 occupy the same grid; remove site 10
+  Mon_loc <- subset(Mon_loc, Mon_loc$SiteID != 10)
+  PM25    <- subset(PM25, PM25$SiteID != 10)
+  
+  NAMO <- merge(NAMO, Mon_loc[,c("Grid_Cell", "SiteID")], by.x="Grid_Cell", by.y="Grid_Cell")
+}
 
-head(PM25$date)
-head(NAMO$date)
+
+
+
 
 PM25$mergeID <- paste0(PM25$date,"-",PM25$SiteID)
 NAMO$mergeID <- paste0(NAMO$date,"-",NAMO$SiteID)
+
 
 NAMO$date    <- NULL
 NAMO$SiteID  <- NULL
@@ -391,8 +449,11 @@ Z.pred <- as.matrix (dat_pred[, name_cov])
 #Time ID = consecutive days with label 1, 2, ...
 Space.ID.pred <- dat_pred$GridID
 
-Time.ID.pred  <- as.numeric(as.Date(dat_pred$date) - as.Date ("2013-07-01"))+1
-
+if(dataFormat == 0) {
+  Time.ID.pred  <- as.numeric(as.Date(dat_pred$date) - as.Date ("2013-01-01"))+1
+} else if(dataFormat == 1) {
+  Time.ID.pred  <- as.numeric(as.Date(dat_pred$date) - as.Date ("2013-01-01"))+1
+}
 
 
 
@@ -419,7 +480,11 @@ save (dat.pred, file = "Pred.RData")
 load(file="Pred.RData")
 Coord.plot <- unique(Mon_loc[, c("GridLon", "GridLat")])
 #Spatial plot on July 1, 2004
-july1 = subset (dat.pred, date == "2014-02-01")
+if(dataFormat == 0) {
+  july1 = subset (dat.pred, date == "2014-02-01")
+} else if(dataFormat == 1) {
+  july1 = subset (dat.pred, date == "2013-08-20")
+}
 
 #july2 = subset (dat.pred, date == "2014-02-02")
 
@@ -427,7 +492,7 @@ library (classInt)
 library (RColorBrewer)
 library (maps)
 
-nclr <- 5
+nclr <- 10
 plotclr <- brewer.pal(nclr,"YlOrRd")
 plotclr <- plotclr[1:nclr] # reorder colors
 class <- classIntervals(round(july1$pred,1), nclr, style = "pretty")
@@ -438,7 +503,7 @@ map ("county", add = TRUE, col = "grey")
 map ("state", add = T)
 legend("bottomleft", legend=names(attr(colcode, "table")),  fill=attr(colcode, "palette"), cex=1,bg = "white")
 
-nclr <- 5
+nclr <- 10
 plotclr <- brewer.pal(nclr,"YlOrRd")
 plotclr <- plotclr[1:nclr] # reorder colors
 class <- classIntervals(round(july1$se,1), nclr, style = "pretty")

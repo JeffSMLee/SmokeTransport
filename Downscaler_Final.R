@@ -172,7 +172,7 @@ DownScaler = function(Y, X, Z, Dist.mat, Space.ID, Day.ID, Mon.coord,
 
 	print ("Preparing for MCMC")
 	# 
-	if(TRUE){
+	if(FALSE){
 		Day.ID = Time.ID;taper=TRUE;range1 = 100;range2 = 250
 		n.iter = 500; burn = 10; thin = 10000
 		A.sd = 1000; A21.tune = 0.4; rho1.tune=0.4; rho2.tune = 0.3
@@ -315,7 +315,7 @@ DownScaler = function(Y, X, Z, Dist.mat, Space.ID, Day.ID, Mon.coord,
 	
 	while (i <= n.iter){
 
-		if (TRUE){ #(i %% 250) == 0  ){ 
+		if((i %% 250) == 0  ){ 
 		  print (paste("Iteration", i, "of", n.iter)) 
 		}
 	  
