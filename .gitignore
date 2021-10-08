@@ -39,11 +39,16 @@ vignettes/*.pdf
 .Renviron
 
 # data files
+/*.RData
 /namo.RData
 /pm25.RData
 /monloc.RData
 /DSrun.RData
 /Pred.RData
+/data/*
 /data/.ipynb_checkpoints
 /data/LUR.csv
 /data/LUR/
+
+# figures
+*.png

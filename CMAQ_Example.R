@@ -33,6 +33,7 @@ if(dataFormat == 0) {
 } else if(dataFormat == 1) {
   Mon_loc   <- read.csv("data/mon_loc_unique_col61_all_11_20_2019.csv")
   load("data/data_Grid_fixed_Nov_21_2019.RData")
+  #PM25      <- read.csv("data/pm25.csv")
   PM25      <- read.csv("data/pm25_unique_col61_all_11_20_2019.csv")
   NAMO      <- read.csv("data/LUR.csv")
   
@@ -70,6 +71,10 @@ if(dataFormat == 0) {
   save(PM25, file="pm25.RData")
   save(Mon_loc, file="monloc.RData")
   save(NAMO, file="namo.RData")
+} else if(dataFormat == 2) {
+  load("namo.RData")
+  load("pm25.RData")
+  load("monloc.RData")
 }
 
 
@@ -197,7 +202,7 @@ Space.ID = dat_f$MonID # 192
 
 if(dataFormat == 0) {
   dat_f$timeorder = as.numeric(as.Date(dat_f$date) - as.Date ("2013-01-01"))+1
-} else if(dataFormat == 1){
+} else {
   dat_f$timeorder = as.numeric(as.Date(dat_f$date) - as.Date ("2013-01-01"))+1
 }
 Time.ID = dat_f$timeorder
@@ -231,7 +236,11 @@ thin = 5
 fit = DownScaler (Y, X, Z, Dist.mat, Space.ID, Time.ID, Mon.coord, n.iter = n.iter, burn = burn, thin = thin,taper=TRUE, save.beta = TRUE)
 
 ##save the model results
-save (fit, file = "DSrun.RData")
+if(dataFormat == 0) {
+  save (fit, file = "DSrun_UNR.RData")
+} else {
+  save (fit, file = "DSrun_OU.RData")
+}
 
 ###Here are some example to look at the fitted results
 #Temporal additive bias
@@ -258,10 +267,16 @@ path <- ("C:/Users/Jeffrey/Research/")
 
 setwd(paste0(path,"/SmokeTransport/"))
 
-#load ("data.RData")
-load ("DSrun.RData")
 
-dataFormat <- 1 # 0 for CMAG/NAM, 1 for Marcela
+dataFormat <- 2 # 0 for CMAG/NAM, 1 for Marcela
+
+#load ("data.RData")
+if(dataFormat == 0) {
+  load ("DSrun_UNR.RData")
+} else {
+  load ("DSrun_OU.RData")
+}
+
 
 
 if(dataFormat == 0) {
@@ -323,6 +338,10 @@ if(dataFormat == 0) {
   PM25    <- subset(PM25, PM25$SiteID != 10)
   
   NAMO <- merge(NAMO, Mon_loc[,c("Grid_Cell", "SiteID")], by.x="Grid_Cell", by.y="Grid_Cell")
+} else if(dataFormat == 2) {
+  load("namo.RData")
+  load("pm25.RData")
+  load("monloc.RData")
 }
 
 
@@ -451,14 +470,14 @@ Space.ID.pred <- dat_pred$GridID
 
 if(dataFormat == 0) {
   Time.ID.pred  <- as.numeric(as.Date(dat_pred$date) - as.Date ("2013-01-01"))+1
-} else if(dataFormat == 1) {
+} else {
   Time.ID.pred  <- as.numeric(as.Date(dat_pred$date) - as.Date ("2013-01-01"))+1
 }
 
 
 
 
-Coord.pred = unique(Mon_loc[, c("Grid_Centroid_X", "Grid_Centroid_Y")]/1000)
+Coord.pred = unique((Mon_loc[Mon_loc$SiteID %in% unique(PM25$SiteID),])[, c("Grid_Centroid_X", "Grid_Centroid_Y")]/1000)
 #Coord.pred    <- unique(dat_pred[c("pm_x", "pm_y")]/1000)
 
 
@@ -473,16 +492,22 @@ pred = pred.downscaler (fit, X.pred, Z.pred, Space.ID.pred, Time.ID.pred, Coord.
 ### Merge the predictions and standard errors with the time-stamp and grid cell
 dat.pred = data.frame (date=as.Date(dat_pred$date), GridID = dat_pred$GridID, pmob=dat_pred$PM_FRM_ob, pred = pred$Est, se = pred$SD)
 
-save (dat.pred, file = "Pred.RData")
-
+if(dataFormat == 0) {
+  save (dat.pred, file = "Pred_UNR.RData")
+} else {
+  save (dat.pred, file = "Pred_OU.RData")
+}
 # ===========================================================================================
-
-load(file="Pred.RData")
+if(dataFormat == 0) {
+  load(file = "Pred_UNR.RData")
+} else {
+  load(file = "Pred_OU.RData")
+}
 Coord.plot <- unique(Mon_loc[, c("GridLon", "GridLat")])
 #Spatial plot on July 1, 2004
 if(dataFormat == 0) {
   july1 = subset (dat.pred, date == "2014-02-01")
-} else if(dataFormat == 1) {
+} else {
   july1 = subset (dat.pred, date == "2013-08-20")
 }
 
@@ -498,7 +523,7 @@ plotclr <- plotclr[1:nclr] # reorder colors
 class <- classIntervals(round(july1$pred,1), nclr, style = "pretty")
 colcode <- findColours(class, plotclr)
 windows()
-plot (Coord.plot[,1], Coord.plot[,2], col = colcode, pch = 15, cex = 1, main = "Example: Predictions on Feb 1, 2014")
+plot (Coord.plot[,1], Coord.plot[,2], col = colcode, pch = 15, cex = 1, main = "Predictions on Aug 20, 2013")
 map ("county", add = TRUE, col = "grey")
 map ("state", add = T)
 legend("bottomleft", legend=names(attr(colcode, "table")),  fill=attr(colcode, "palette"), cex=1,bg = "white")
@@ -510,7 +535,7 @@ class <- classIntervals(round(july1$se,1), nclr, style = "pretty")
 colcode <- findColours(class, plotclr)
 
 windows()
-plot (Coord.plot[,1], Coord.plot[,2], col = colcode, pch = 15, cex = 1, main = "Example: Predictions on July 1, 2004")
+plot (Coord.plot[,1], Coord.plot[,2], col = colcode, pch = 15, cex = 1, main = "SE on Aug 20, 2013")
 map ("county", add = T, col = "grey")
 map ("state", add = T)
 legend("bottomleft", legend=names(attr(colcode, "table")),  fill=attr(colcode, "palette"), cex=1, bg = "white")
@@ -548,7 +573,7 @@ class <- classIntervals(round(plot_rmse$rmse,1), nclr, style = "pretty")
 colcode <- findColours(class, plotclr)
 
 windows()
-plot (plot_rmse$GridLon, plot_rmse$GridLat, col = colcode, pch = 15, cex = 1, main = "Example: Predictions on Feb 1, 2014")
+plot (plot_rmse$GridLon, plot_rmse$GridLat, col = colcode, pch = 15, cex = 1, main = "RMSE")
 map ("county", add = TRUE, col = "grey")
 map ("state", add = T)
 legend("bottomleft", legend=names(attr(colcode, "table")),  fill=attr(colcode, "palette"), cex=1,bg = "white")
@@ -558,10 +583,11 @@ legend("bottomleft", legend=names(attr(colcode, "table")),  fill=attr(colcode, "
 cbind(pmid,rmse)
 
 monsite <- subset (dat.pred, GridID==98)
+windows()
 plot(monsite$pmob,cex=2)
 points(monsite$pred,col="red")
 
-
+windows()
 plot(rmse,cex=2)
 
 idd  <- !is.na(july1$pmob)
