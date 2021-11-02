@@ -337,11 +337,14 @@ if(dataFormat == 0) {
   Mon_loc <- subset(Mon_loc, Mon_loc$SiteID != 10)
   PM25    <- subset(PM25, PM25$SiteID != 10)
   
+  NAMO_FULL <- NAMO
   NAMO <- merge(NAMO, Mon_loc[,c("Grid_Cell", "SiteID")], by.x="Grid_Cell", by.y="Grid_Cell")
 } else if(dataFormat == 2) {
+  load("data/data_Grid_fixed_Nov_21_2019.RData")
   load("namo.RData")
   load("pm25.RData")
   load("monloc.RData")
+  load("namofull.RData")
 }
 
 
@@ -428,8 +431,126 @@ dim(dat)
 head(dat)
 
 
-
-
+if(FALSE){
+  source ("Downscaler_Final.R")
+  dat.pred <- data.frame(matrix(ncol=5,nrow=0))
+  colnames(dat.pred) <- c('date','GridID','pmob','pred','se')
+  chunk_size <- 5000
+  # predict for all cell centroids for Aug 20 2013
+  aug <- subset(NAMO_FULL, date == "2013-08-20")
+  ncentroids <- nrow(aug)
+  niter <- ceiling(ncentroids/chunk_size)
+  for (i in 0:(niter-1)) {
+    print(chunk_size*i+1)
+    print(min(c(ncentroids,(chunk_size*(i+1)))))
+    chunk <- aug[(chunk_size*i+1):min(c(ncentroids,(chunk_size*(i+1)))),]
+    
+    X.pred <- chunk$PM_FRM_mod
+    Z.pred <- as.matrix (chunk[, name_cov])
+    #Space ID = monitor ID 1, 2, ...
+    #Time ID = consecutive days with label 1, 2, ...
+    Space.ID.pred <- 1:min(ncentroids-i*chunk_size, chunksize)#grid.loc_Fixed$Grid_Cell[(chunk_size*i+1):min(c(ncentroids,(chunk_size*(i+1))))]
+    Time.ID.pred <- 1#as.numeric(as.Date("2013-08-20") - as.Date("2013-01-01"))+1
+    
+    
+    
+    
+    Coord.pred = grid.loc_Fixed[(chunk_size*i+1):min(c(ncentroids,(chunk_size*(i+1)))), c("AOD_x", "AOD_y")]/1000
+    
+    pred = pred.downscaler (fit, X.pred, Z.pred, Space.ID.pred, Time.ID.pred, Coord.pred, n.iter = 100)
+    
+    ### Merge the predictions and standard errors with the time-stamp and grid cell
+    dat.predchunk = data.frame (date=as.Date(chunk$date), GridID = chunk$Grid_Cell, pmob = chunk$PM_FRM_mod, pred = pred$Est, se = pred$SD)
+    dat.pred <- rbind(dat.pred, dat.predchunk)
+  }
+  
+  if(dataFormat == 0) {
+    save (dat.pred, file = "Pred_UNR_FULL.RData")
+  } else {
+    save (dat.pred, file = "Pred_OU_FULL.RData")
+  }
+  
+  library (classInt)
+  library (RColorBrewer)
+  library (maps)
+  library (plotrix)
+  
+  Coord.plot <- grid.loc_Fixed[,c('AOD_lon', 'AOD_lat')]
+  
+  
+  pm_breaks<-seq(from =0, to=50, by = 10)
+  windows() 
+  title_str=expression(bold(paste("Predicted PM"["2.5 "],  "(", mu,"g m"^"-3",")")))
+  
+  
+  nclr <- 6
+  par(mar=(c(5,5,5,5)))
+  plotclr <- rev(brewer.pal(nclr,"RdYlBu"))
+  plotclr <- plotclr[1:nclr] # reorder colors
+  class <- classIntervals(round(dat.pred$pred,1), nclr, style = "pretty")
+  class$brks<-pm_breaks
+  colcode <- findColours(class, plotclr)
+ 
+  plot (Coord.plot[,1], Coord.plot[,2], col = colcode, 
+        pch = 19, 
+        cex = 0.7, 
+        main = title_str,
+        xlab="Longitude",
+        ylab="Latitude",
+        font.lab=2,
+        cex.lab=1.5,
+        xaxt='n',
+        yaxt='n',
+        cex.main=1.5,
+        xlim=c(-124, -103),
+        bg=2,
+        ylim=c(32,48))
+  axis(side=1,tck=0.01,font.axis=2,cex.axis=1.5)
+  axis(side=2,tck=0.01,font.axis=2,cex.axis=1.5)
+  map ("county", add = TRUE, col = "grey")
+  map ("state", add = T)
+  mtext('August 20, 2013', line=0.2,font=2,cex=1.3)
+  col.labels<-pm_breaks
+  color.legend(-101.7,33,-100.7,46,col.labels,plotclr,cex=1.5,align='rb',gradient="y", font=2) 
+  
+  
+  # Plot SE
+  pm_breaks<-seq(from =8, to=20, by = 2)
+  windows() 
+  title_str=expression(bold(paste("Predicted SE",  "(", mu,"g m"^"-3",")")))
+  
+  nclr <- 7
+  par(mar=(c(5,5,5,5)))
+  plotclr <- rev(brewer.pal(nclr,"RdYlBu"))
+  plotclr <- plotclr[1:nclr] # reorder colors
+  class <- classIntervals(round(dat.pred$se,1), nclr, style = "pretty")
+  class$brks<-pm_breaks
+  colcode <- findColours(class, plotclr)
+  
+  
+  plot (Coord.plot[,1], Coord.plot[,2], col = colcode, 
+        pch = 19, 
+        cex = 0.7, 
+        main = title_str,
+        xlab="Longitude",
+        ylab="Latitude",
+        font.lab=2,
+        cex.lab=1.5,
+        xaxt='n',
+        yaxt='n',
+        cex.main=1.5,
+        xlim=c(-124, -103),
+        bg=2,
+        ylim=c(32,48))
+  axis(side=1,tck=0.01,font.axis=2,cex.axis=1.5)
+  axis(side=2,tck=0.01,font.axis=2,cex.axis=1.5)
+  map ("county", add = TRUE, col = "grey")
+  map ("state", add = T)
+  mtext('August 20, 2013', line=0.2,font=2,cex=1.3)
+  col.labels<-pm_breaks
+  color.legend(-101.7,33,-100.7,46,col.labels,plotclr,cex=1.5,align='rb',gradient="y", font=2) 
+  
+}
 
 # get back to data format
 
