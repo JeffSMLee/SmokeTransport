@@ -33,8 +33,8 @@ if(dataFormat == 0) {
 } else if(dataFormat == 1) {
   Mon_loc   <- read.csv("data/mon_loc_unique_col61_all_11_20_2019.csv")
   load("data/data_Grid_fixed_Nov_21_2019.RData")
-  #PM25      <- read.csv("data/pm25.csv")
-  PM25      <- read.csv("data/pm25_unique_col61_all_11_20_2019.csv")
+  PM25      <- read.csv("data/pm25.csv")
+  #PM25      <- read.csv("data/pm25_unique_col61_all_11_20_2019.csv")
   NAMO      <- read.csv("data/LUR.csv")
   
   
@@ -67,6 +67,8 @@ if(dataFormat == 0) {
   Mon_loc <- subset(Mon_loc, Mon_loc$SiteID != 10)
   PM25    <- subset(PM25, PM25$SiteID != 10)
   
+  NAMO_FULL <- NAMO
+  save(NAMO_FULL, file='namofull.RData')
   NAMO <- merge(NAMO, Mon_loc[,c("Grid_Cell", "SiteID")], by.x="Grid_Cell", by.y="Grid_Cell")
   save(PM25, file="pm25.RData")
   save(Mon_loc, file="monloc.RData")
@@ -449,7 +451,7 @@ if(FALSE){
     Z.pred <- as.matrix (chunk[, name_cov])
     #Space ID = monitor ID 1, 2, ...
     #Time ID = consecutive days with label 1, 2, ...
-    Space.ID.pred <- 1:min(ncentroids-i*chunk_size, chunksize)#grid.loc_Fixed$Grid_Cell[(chunk_size*i+1):min(c(ncentroids,(chunk_size*(i+1))))]
+    Space.ID.pred <- 1:min(ncentroids-i*chunk_size, chunk_size)#grid.loc_Fixed$Grid_Cell[(chunk_size*i+1):min(c(ncentroids,(chunk_size*(i+1))))]
     Time.ID.pred <- 1#as.numeric(as.Date("2013-08-20") - as.Date("2013-01-01"))+1
     
     
