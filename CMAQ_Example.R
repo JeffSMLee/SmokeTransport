@@ -5,7 +5,7 @@ path <- ("C:/Users/Jeffrey/Research/")
 
 setwd(paste0(path,"/SmokeTransport/"))
 
-dataFormat <- 1 # 0 for CMAG/NAM, 1 for Marcela
+dataFormat <- 2 # 0 for CMAG/NAM, 1 for Marcela
 
 
 if(dataFormat == 0) {
@@ -31,7 +31,7 @@ if(dataFormat == 0) {
   head(PM25$date)
   head(NAMO$date)
 } else if(dataFormat == 1) {
-  Mon_loc   <- read.csv("data/mon_loc_unique_col61_all_11_20_2019.csv")
+  Mon_loc   <- read.csv("data/PM_new_coord.csv")
   load("data/data_Grid_fixed_Nov_21_2019.RData")
   PM25      <- read.csv("data/pm25.csv")
   #PM25      <- read.csv("data/pm25_unique_col61_all_11_20_2019.csv")
@@ -64,8 +64,8 @@ if(dataFormat == 0) {
   colnames(Mon_loc)[colnames(Mon_loc) == "AOD_y"]     <- "Grid_Centroid_Y"
   
   # monitors 9 and 10 occupy the same grid; remove site 10
-  Mon_loc <- subset(Mon_loc, Mon_loc$SiteID != 10)
-  PM25    <- subset(PM25, PM25$SiteID != 10)
+  #Mon_loc <- subset(Mon_loc, Mon_loc$SiteID != 10)
+  #PM25    <- subset(PM25, PM25$SiteID != 10)
   
   NAMO_FULL <- NAMO
   save(NAMO_FULL, file='namofull.RData')
@@ -241,7 +241,7 @@ fit = DownScaler (Y, X, Z, Dist.mat, Space.ID, Time.ID, Mon.coord, n.iter = n.it
 if(dataFormat == 0) {
   save (fit, file = "DSrun_UNR.RData")
 } else {
-  save (fit, file = "DSrun_OU.RData")
+  save (fit, file = paste0("DSrun_OU_", N.loc, ".RData"))
 }
 
 ###Here are some example to look at the fitted results
@@ -399,7 +399,8 @@ length(unique(ALLPM$SiteID))
 dat_orii = merge(ALLPM, Mon_loc, by.x ="SiteID", by.y = "SiteID", all.x = TRUE, all.y=FALSE)
 
 #name_cov  <- c("T_2m_Avg","Dwt_2m_Avg","Ws_10m_Avg","Wdir_10m_Avg","Pblh_Avg","Pmsl_Avg","Hgt_Avg","Veg_Avg")
-name_cov  <- c("T_2m_Avg","Dwt_2m_Avg","Ws_10m_Avg","Wdir_10m_Avg","Pmsl_Avg","Veg_Avg")
+#name_cov  <- c("T_2m_Avg","Dwt_2m_Avg","Ws_10m_Avg","Wdir_10m_Avg","Pmsl_Avg","Veg_Avg")
+name_cov <- NULL
 name_loc  <- c("SiteX","SiteY","GridRow","GridCol","SiteLon","SiteLat","GridLon","GridLat","Grid_Centroid_X","Grid_Centroid_Y")
 name_keep <- c("SiteID","date","PM_FRM_ob","PM_FRM_mod",name_cov,name_loc)
 

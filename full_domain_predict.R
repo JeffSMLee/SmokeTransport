@@ -5,7 +5,7 @@ path <- ("C:/Users/Jeffrey/Research/")
 setwd(paste0(path,"/SmokeTransport/"))
 
 
-load ("DSrun_OU.RData")
+load ("DSrun_OU_429.RData")
 load("data/data_Grid_fixed_Nov_21_2019.RData")
 load("namofull.RData")
 
@@ -17,7 +17,7 @@ name_cov  <- c("T_2m_Avg","Dwt_2m_Avg","Ws_10m_Avg","Wdir_10m_Avg","Pmsl_Avg","V
 source ("Downscaler_Final.R")
 dat.pred <- data.frame(matrix(ncol=5,nrow=0))
 colnames(dat.pred) <- c('date','GridID','pmob','pred','se')
-chunk_size <- 5000
+chunk_size <- 3000
 # predict for all cell centroids for Aug 20 2013
 ncentroids <- length(unique(NAMO_FULL[['Grid_Cell']]))
 niter <- ceiling(ncentroids/chunk_size)
@@ -45,11 +45,11 @@ for (i in 0:(niter-1)) {
   dat.pred <- rbind(dat.pred, dat.predchunk)
 }
 
-save (dat.pred, file = "Pred_OU_FULL.RData")
+save (dat.pred, file = "Pred_OU_FULL_429.RData")
 
 
 # Begin plotting
-load('Pred_OU_FULL.RData')
+load('Pred_OU_FULL_429.RData')
 
 library (classInt)
 library (RColorBrewer)
@@ -62,7 +62,7 @@ plot_day <- function(dat.pred) {
   date <- dat.pred$date[1]
   print(date)
   pm_breaks<-seq(from =0, to=50, by = 10)
-  png(filename = paste0('./images/','pm25_',date,'.png'))
+  png(filename = paste0('./images/429_Predictions/','pm25_',date,'.png'))
   title_str=expression(bold(paste("Predicted PM"["2.5 "], "(", mu,"g m"^"-3",")")))
   
   
@@ -99,7 +99,7 @@ plot_day <- function(dat.pred) {
   
   # Plot SE
   pm_breaks<-seq(from =8, to=20, by = 2)
-  png(filename = paste0('./images/','se_',date,'.png'))
+  png(filename = paste0('./images/429_Predictions/','se_',date,'.png'))
   title_str=expression(bold(paste("Predicted SE", "(", mu,"g m"^"-3",")")))
   
   nclr <- 7

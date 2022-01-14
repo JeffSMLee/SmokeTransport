@@ -168,9 +168,9 @@ DownScaler = function(Y, X, Z, Dist.mat, Space.ID, Day.ID, Mon.coord,
                       A2.a = 0.001, A2.b = 0.001,
                       sigma.a = 0.001, sigma.b = 0.001,
                       taper = TRUE,
-                      save.alpha = TRUE, save.beta = TRUE){
+                      save.alpha = TRUE, save.beta = TRUE, verbose=TRUE){
 
-	print ("Preparing for MCMC")
+	if(verbose) { print ("Preparing for MCMC") }
 	# 
 	if(FALSE){
 		Day.ID = Time.ID;taper=TRUE;range1 = 100;range2 = 250
@@ -219,9 +219,11 @@ DownScaler = function(Y, X, Z, Dist.mat, Space.ID, Day.ID, Mon.coord,
 	Day.obs =  Day.labels %in% Day.ID ## Check which days are observed
 	D = diag.spam ( apply (Day.mat, 2, sum))
 
-	print (paste0("Total numberber of locations = ", N.space))
-	print (paste0("Total numberber of days = ", N.day, "(", sum (Day.obs), " observed)" ))
-
+	if(verbose) {
+  	print (paste0("Total numberber of locations = ", N.space))
+  	print (paste0("Total numberber of days = ", N.day, "(", sum (Day.obs), " observed)" ))
+	}
+	
 	### Save some computation
 	Space.perm = NULL ## Keep tract of permutation
 	for (mon.i in Space.labels ){
@@ -256,7 +258,10 @@ DownScaler = function(Y, X, Z, Dist.mat, Space.ID, Day.ID, Mon.coord,
 
 	###################################
 	### Initial Value from mixed model:
-	print ("Obtaining Initial Values")
+	if(verbose) {
+	  print ("Obtaining Initial Values")
+	}
+	
 	fit = lmer (Y~Z -1 +  (X|Space.ID) + (X|Day.ID) )
 
 	#gamma = matrix(fit@fixef, ncol = 1)
@@ -308,14 +313,16 @@ DownScaler = function(Y, X, Z, Dist.mat, Space.ID, Day.ID, Mon.coord,
 	rho.acc = c(0,0)
 
 	### MCMC begins
-	print ("#############################")
-	print ("MCMC Begins!")
+	if(verbose) {
+  	print ("#############################")
+  	print ("MCMC Begins!")
+	}
 	
 	i <- 1
 	
 	while (i <= n.iter){
 
-		if((i %% 250) == 0  ){ 
+		if(((i %% 250) == 0) && verbose){ 
 		  print (paste("Iteration", i, "of", n.iter)) 
 		}
 	  
@@ -512,7 +519,7 @@ options(spam.nearestdistnnz=c(2348949,400))
 #spam::spam.options(nearestdistnnz=c(2348949,400))
 
 pred.downscaler = function (obj, X.pred, Z.pred, Space.ID, Day.ID, Pred.coord,
-                            n.iter = 100, save.samp = TRUE){
+                            n.iter = 100, save.samp = TRUE, verbose=TRUE){
     # obj=fit;Space.ID=Space.ID.pred;Day.ID=Time.ID.pred;Pred.coord=Coord.pred;n.iter=100
     ################################
     ### Get some summary statistics
@@ -526,11 +533,14 @@ pred.downscaler = function (obj, X.pred, Z.pred, Space.ID, Day.ID, Pred.coord,
     N.day = max(Day.ID)
     Space.labels = sort (unique (Space.ID))
     Day.labels = sort (unique (Day.ID))
-
-    print (paste("Total number of predictions:", N))
-    print (paste("Predictions over", N.space, "unique locations"))
-    print (paste("Predictions over", N.day, "unique days"))
-
+    
+    
+    if(verbose) {
+      print (paste("Total number of predictions:", N))
+      print (paste("Predictions over", N.space, "unique locations"))
+      print (paste("Predictions over", N.day, "unique days"))
+    }
+    
     ### Extracts info from previous model fit
     eff.dist1 = obj$taper.info[1]
     eff.dist2 = obj$taper.info[2]
@@ -540,8 +550,10 @@ pred.downscaler = function (obj, X.pred, Z.pred, Space.ID, Day.ID, Pred.coord,
     ################################################
     ## Interpolate Spatial Random Effects
     ################################################
-    print ("Interpolating Spatial Random Effects")
-    print ("This may take some time")
+    if(verbose) {
+      print ("Interpolating Spatial Random Effects")
+      print ("This may take some time")
+    }
     post.int = matrix (0, ncol = n.iter, nrow = N.space)
     post.slope = matrix (0, ncol = n.iter, nrow = N.space)
     post = post2 = matrix (0, ncol = 2, nrow = N.space)
@@ -552,7 +564,7 @@ pred.downscaler = function (obj, X.pred, Z.pred, Space.ID, Day.ID, Pred.coord,
     A[ 1:(N.mon*2), 1:(N.mon*2) ] = diag(N.mon*2)
 
     for (j in 1:n.iter){
-       if (j %% 10 == 0){ print (paste ("    Iteration", j, "of", n.iter))}
+       if (((j %% 10) == 0) && verbose) { print (paste ("    Iteration", j, "of", n.iter))}
 
         i = iter.use[j]
         H1 = stationary.taper.cov(Dist.list, theta = obj$rho[i,1],Taper.args=list(k=2,theta=eff.dist1,dimension=2))
@@ -581,7 +593,9 @@ pred.downscaler = function (obj, X.pred, Z.pred, Space.ID, Day.ID, Pred.coord,
 
     ### Predictions
     ### Loop through
-    print ("Performing Predictions")
+    if(verbose) {
+      print ("Performing Predictions")
+    }
     Results = matrix (NA, ncol = n.iter, nrow = N)
     for (j in 1:n.iter){
 
