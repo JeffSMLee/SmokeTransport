@@ -6,7 +6,8 @@ path <- ("C:/Users/Jeffrey/Research/")
 setwd(paste0(path,"/SmokeTransport/"))
 
 dataFormat <- 2 # 0 for CMAG/NAM, 1 for Marcela
-
+sat <- "MOD"
+predictor <- "CMAQ"
 
 if(dataFormat == 0) {
   Mon_loc   <- read.csv("data/LCC_6370997.csv",header=TRUE)
@@ -36,7 +37,7 @@ if(dataFormat == 0) {
   PM25      <- read.csv("data/pm25.csv")
   #PM25      <- read.csv("data/pm25_unique_col61_all_11_20_2019.csv")
   NAMO      <- read.csv("data/LUR.csv")
-  
+  AOD       <- read.csv(paste0("data/", sat, ".csv"))
   
   
   
@@ -44,6 +45,7 @@ if(dataFormat == 0) {
   dates       <- paste0(sapply(datesplit, "[[", 2),"/",sapply(datesplit, "[[", 3),"/",sapply(datesplit, "[[", 1))
   PM25$date   <- as.Date(dates, "%m/%d/%Y")
   NAMO$date   <- as.Date(NAMO$date, "%m/%d/%Y")
+  AOD$date    <- as.Date(AOD$date, "%Y-%m-%d")
   
   colnames(PM25)[colnames(PM25) == "monID"] <- "SiteID"
   colnames(PM25)[colnames(PM25) == "pm25"]  <- "PM_FRM_ob"
@@ -68,15 +70,18 @@ if(dataFormat == 0) {
   #PM25    <- subset(PM25, PM25$SiteID != 10)
   
   NAMO_FULL <- NAMO
+  NAMO_FULL <- merge(NAMO, AOD, by.x=c("date", "Grid_Cell"), by.y=c("date", "GRID_ID"), all.x=TRUE, all.y=TRUE)
   save(NAMO_FULL, file='namofull.RData')
   NAMO <- merge(NAMO, Mon_loc[,c("Grid_Cell", "SiteID")], by.x="Grid_Cell", by.y="Grid_Cell")
   save(PM25, file="pm25.RData")
+  save(AOD, file=paste0(sat, ".RData"))
   save(Mon_loc, file="monloc.RData")
   save(NAMO, file="namo.RData")
 } else if(dataFormat == 2) {
   load("namo.RData")
   load("pm25.RData")
   load("monloc.RData")
+  load("MOD.RData")
 }
 
 
@@ -101,7 +106,17 @@ PM25 <- PM25[ID1,]
 NAMO <- NAMO[ID2,]
 
 ALLPM  <- merge(PM25,NAMO,by.x ="mergeID", by.y = "mergeID", all.x = TRUE, all.y=FALSE)
+ALLPM  <- merge(ALLPM,AOD,by.x=c("date", "gridID"), by.y=c("date", "GRID_ID"), all.x=TRUE, all.y=FALSE)
+
 dim(ALLPM)
+
+if(FALSE) {
+  m = lm(ALLPM$aod_550~ALLPM$PM_FRM_ob)
+  plot(ALLPM$PM_FRM_ob, ALLPM$aod_550, xlab = Observed~PM[2.5]~(mu * g ~ m^-3), ylab = "", xlim = c(0,100))
+  text(x=80,y=90,label=expression(paste(" ", R^2 , "= ", 0.047)))
+  title(ylab=CMAQ~PM[2.5]~Predictions~(mu * g ~ m^-3), line=2.5)
+  abline(lm(ALLPM$aod_550~ALLPM$PM_FRM_ob))
+}
 
 # sort both dataset by SiteId
 ID0       <- order(Mon_loc$SiteID)
@@ -128,9 +143,14 @@ length(unique(ALLPM$SiteID))
 dat_orii = merge(ALLPM, Mon_loc, by.x ="SiteID", by.y = "SiteID", all.x = TRUE, all.y=FALSE)
 
 #name_cov  <- c("T_2m_Avg","Dwt_2m_Avg","Ws_10m_Avg","Wdir_10m_Avg","Pblh_Avg","Pmsl_Avg","Hgt_Avg","Veg_Avg")
-name_cov  <- c("T_2m_Avg","Dwt_2m_Avg","Ws_10m_Avg","Wdir_10m_Avg","Pmsl_Avg","Veg_Avg")
+#name_cov  <- c("T_2m_Avg","Dwt_2m_Avg","Ws_10m_Avg","Wdir_10m_Avg","Pmsl_Avg","Veg_Avg")
+name_cov  <- c("PIH", "PBLH") 
 name_loc  <- c("SiteX","SiteY","GridRow","GridCol","SiteLon","SiteLat","GridLon","GridLat","Grid_Centroid_X","Grid_Centroid_Y")
-name_keep <- c("SiteID","date","PM_FRM_ob","PM_FRM_mod",name_cov,name_loc)
+if(predictor == "AOD") {
+  name_keep <- c("SiteID","date","PM_FRM_ob","aod_550",name_cov,name_loc)
+} else if(predictor == "CMAQ") {
+  name_keep <- c("SiteID","date","PM_FRM_ob","PM_FRM_mod",name_cov,name_loc)
+}
 
 dat_ori = dat_orii[,name_keep]
 dim(dat_ori)
@@ -139,12 +159,16 @@ str(dat_ori)
 ##drop rows with missing observed pm2.5
 ## PM2.5 < 2 treated as missing
 dat_ori$PM_FRM_ob[ dat_ori$PM_FRM_ob < 2] <- NA
-dat = subset (dat_ori, !is.na (dat_ori$PM_FRM_ob+dat_ori$PM_FRM_mod))
+if(predictor == "AOD") {
+  dat = subset (dat_ori, !is.na (dat_ori$PM_FRM_ob+dat_ori$aod_550))
+} else if(predictor == "CMAQ") {
+  dat = subset (dat_ori, !is.na (dat_ori$PM_FRM_ob+dat_ori$PM_FRM_mod))
+  
+  sum((!is.na(dat_ori$PM_FRM_ob))&is.na(dat_ori$PM_FRM_mod)) # should be 0
+  which((!is.na(dat_ori$PM_FRM_ob))&is.na(dat_ori$PM_FRM_mod)) # should be integer(0)
+}
 
 
-sum((!is.na(dat_ori$PM_FRM_ob))&is.na(dat_ori$PM_FRM_mod)) # should be 0
-
-which((!is.na(dat_ori$PM_FRM_ob))&is.na(dat_ori$PM_FRM_mod)) # should be integer(0)
 
 #subset(dat_ori,(!is.na(dat_ori$PM_FRM_ob))&is.na(dat_ori$PM_FRM_mod))[1:10,]
 
@@ -190,10 +214,15 @@ str(dat_f)
 #X = proxy
 #Y = PM2.5
 #Z = matrix of LU/Met predictors
-X = dat_f$PM_FRM_mod
+if(predictor == "AOD") {
+  X = dat_f$aod_550
+} else if(predictor == "CMAQ") {
+  X = dat_f$PM_FRM_mod
+}
+
 Y = dat_f$PM_FRM_ob
 Z = as.matrix (dat_f[, name_cov])
-
+#Z = NULL
 
 # there is no Met predictors
 #Z = as.matrix (dat[, c("elevation", "forestcover", "lim.hwy.length", "point.emi.any", "tmp", "wind")])
@@ -241,7 +270,7 @@ fit = DownScaler (Y, X, Z, Dist.mat, Space.ID, Time.ID, Mon.coord, n.iter = n.it
 if(dataFormat == 0) {
   save (fit, file = "DSrun_UNR.RData")
 } else {
-  save (fit, file = paste0("DSrun_OU_", N.loc, ".RData"))
+  save (fit, file = paste0("DSrun_OU_", sat, "_", predictor, ".RData"))
 }
 
 ###Here are some example to look at the fitted results
@@ -271,12 +300,14 @@ setwd(paste0(path,"/SmokeTransport/"))
 
 
 dataFormat <- 2 # 0 for CMAG/NAM, 1 for Marcela
+sat <- "MOD"
+predictor <- "AOD"
 
 #load ("data.RData")
 if(dataFormat == 0) {
   load ("DSrun_UNR.RData")
 } else {
-  load ("DSrun_OU.RData")
+  load (paste0("DSrun_OU_",sat,"_",predictor,".RData"))
 }
 
 
@@ -346,7 +377,8 @@ if(dataFormat == 0) {
   load("namo.RData")
   load("pm25.RData")
   load("monloc.RData")
-  load("namofull.RData")
+  #load("namofull.RData")
+  load("MOD.RData")
 }
 
 
@@ -372,6 +404,7 @@ PM25 <- PM25[ID1,]
 NAMO <- NAMO[ID2,]
 
 ALLPM  <- merge(PM25,NAMO,by.x ="mergeID", by.y = "mergeID", all.x = TRUE, all.y=FALSE)
+ALLPM  <- merge(ALLPM,AOD,by.x=c("date", "gridID"), by.y=c("date", "GRID_ID"), all.x=TRUE, all.y=FALSE)
 dim(ALLPM)
 
 # sort both dataset by SiteId
@@ -402,7 +435,7 @@ dat_orii = merge(ALLPM, Mon_loc, by.x ="SiteID", by.y = "SiteID", all.x = TRUE, 
 #name_cov  <- c("T_2m_Avg","Dwt_2m_Avg","Ws_10m_Avg","Wdir_10m_Avg","Pmsl_Avg","Veg_Avg")
 name_cov <- NULL
 name_loc  <- c("SiteX","SiteY","GridRow","GridCol","SiteLon","SiteLat","GridLon","GridLat","Grid_Centroid_X","Grid_Centroid_Y")
-name_keep <- c("SiteID","date","PM_FRM_ob","PM_FRM_mod",name_cov,name_loc)
+name_keep <- c("SiteID","date","PM_FRM_ob","PM_FRM_mod","aod_550",name_cov,name_loc)
 
 dat_ori = dat_orii[,name_keep]
 dim(dat_ori)
@@ -411,7 +444,7 @@ str(dat_ori)
 ##drop rows with missing observed pm2.5
 ## PM2.5 < 2 treated as missing
 
-dat = subset (dat_ori, !is.na (dat_ori$PM_FRM_mod))
+dat = subset (dat_ori, !is.na (dat_ori$aod_550))
 
 
 dat$AggID  <- paste0(dat$date,"-",dat$GridCol,"-",dat$GridRow)
@@ -516,6 +549,42 @@ if(FALSE){
   col.labels<-pm_breaks
   color.legend(-101.7,33,-100.7,46,col.labels,plotclr,cex=1.5,align='rb',gradient="y", font=2) 
   
+  pm_breaks<-seq(from =0, to=3, by = 0.1)
+  windows() 
+  title_str="AOD aug 24 2013"
+  
+  
+  nclr <- 6
+  par(mar=(c(5,5,5,5)))
+  plotclr <- rev(brewer.pal(nclr,"RdYlBu"))
+  plotclr <- plotclr[1:nclr] # reorder colors
+  class <- classIntervals(aod_aug24$aod_550, nclr, style = "pretty")
+  class$brks<-pm_breaks
+  colcode <- findColours(class, plotclr)
+  
+  plot (Coord.plot[,1], Coord.plot[,2], col = colcode, 
+        pch = 19, 
+        cex = 0.7, 
+        main = title_str,
+        xlab="Longitude",
+        ylab="Latitude",
+        font.lab=2,
+        cex.lab=1.5,
+        xaxt='n',
+        yaxt='n',
+        cex.main=1.5,
+        xlim=c(-124, -103),
+        bg=2,
+        ylim=c(32,48))
+  axis(side=1,tck=0.01,font.axis=2,cex.axis=1.5)
+  axis(side=2,tck=0.01,font.axis=2,cex.axis=1.5)
+  map ("county", add = TRUE, col = "grey")
+  map ("state", add = T)
+  #mtext('August 20, 2013', line=0.2,font=2,cex=1.3)
+  col.labels<-pm_breaks
+  color.legend(-101.7,33,-100.7,46,col.labels,plotclr,cex=1.5,align='rb',gradient="y", font=2)
+  points(Mon_loc$SiteLon, Mon_loc$SiteLat)
+  
   
   # Plot SE
   pm_breaks<-seq(from =8, to=20, by = 2)
@@ -586,8 +655,9 @@ str(dat_pred)
 # Use the complete CMAQ datasets here
 
 # Need the X and Z values of a GRID, NOT a Site
-X.pred <- dat_pred$PM_FRM_mod
-Z.pred <- as.matrix (dat_pred[, name_cov])
+X.pred <- dat_pred$aod_550
+#Z.pred <- as.matrix (dat_pred[, name_cov])
+Z.pred <- NULL
 #Space ID = monitor ID 1, 2, ...
 #Time ID = consecutive days with label 1, 2, ...
 Space.ID.pred <- dat_pred$GridID
@@ -601,7 +671,7 @@ if(dataFormat == 0) {
 
 
 
-Coord.pred = unique((Mon_loc[Mon_loc$SiteID %in% unique(PM25$SiteID),])[, c("Grid_Centroid_X", "Grid_Centroid_Y")]/1000)
+Coord.pred = unique((Mon_loc[Mon_loc$SiteID %in% unique(dat_pred$SiteID),])[, c("Grid_Centroid_X", "Grid_Centroid_Y")]/1000)
 #Coord.pred    <- unique(dat_pred[c("pm_x", "pm_y")]/1000)
 
 
@@ -619,13 +689,21 @@ dat.pred = data.frame (date=as.Date(dat_pred$date), GridID = dat_pred$GridID, pm
 if(dataFormat == 0) {
   save (dat.pred, file = "Pred_UNR.RData")
 } else {
-  save (dat.pred, file = "Pred_OU.RData")
+  save (dat.pred, file = paste0("Pred_OU_",sat,"_",predictor,".RData"))
+}
+
+if(FALSE){
+  m = lm(dat.pred$pred~dat.pred$pmob)
+  plot(dat.pred$pmob, dat.pred$pred, xlab = Observed~PM[2.5]~(mu * g ~ m^-3), ylab = "", xlim = c(0,100), ylim = c(0,100))
+  text(x=80,y=90,label=expression(paste(" ", R^2 , "= ", 0.46)))
+  title(ylab=DS~PM[2.5]~Predictions~(mu * g ~ m^-3), line=2.5)
+  abline(m)
 }
 # ===========================================================================================
 if(dataFormat == 0) {
   load(file = "Pred_UNR.RData")
 } else {
-  load(file = "Pred_OU.RData")
+  load(file = "Pred_OU_MOD_AOD.RData")
 }
 Coord.plot <- unique(Mon_loc[, c("GridLon", "GridLat")])
 #Spatial plot on July 1, 2004
